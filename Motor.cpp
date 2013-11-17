@@ -38,11 +38,17 @@
 #define MAX_POS (6)
 #define LOW_POS (1)
 
+/* Motor Constants */
+#define NSP (5)
+#define SERVO_MAXWIDTH (2000000) // ns
+#define SERVO_MINWIDTH (1000000) // ns
+
 Motor::Motor(std::queue<unsigned char> *queue, uintptr_t port) {
 	// TODO Auto-generated constructor stub
 	_queue = queue;
 	_currentPos = 0;
 	_port = port;
+	_pulseWidthNS = SERVO_MINWIDTH; // move servo to position 0
 }
 
 Motor::~Motor() {
@@ -50,11 +56,14 @@ Motor::~Motor() {
 }
 
 void Motor::moveMotor(int position){
-	// check bounds
+
+	/* Check bounds */
 	if(position >= MAX_POS || position <= LOW_POS){
 		return;
 	}
-	//TODO move motor
+
+	/* Change pulse width */
+	_pulseWidthNS = (SERVO_MINWIDTH) + (((SERVO_MAXWIDTH-SERVO_MINWIDTH) * position)/NSP);
 }
 
 /**
@@ -62,10 +71,16 @@ void Motor::moveMotor(int position){
  */
 void Motor::executeCmds(){
 	unsigned char cmd;
+	int nanoTime = 0;
+	int period = 20000000;
 	std::cout << "Motor executing commands \n";
 
-	while(_active){
+	while(true){
+		nanoTime = 0;
 
+		std::cout << "HI";
+
+		// check queue for cmd
 		if(!_queue->empty()){
 			cmd = _queue->front();
 			std::cout << "Motor trying to execute: " << cmd << "\n";
@@ -95,8 +110,9 @@ void Motor::executeCmds(){
 						// Do Nothing
 						break;
 				}
+		} else {
+			_pulseWidthNS = SERVO_MINWIDTH;
 		}
-		usleep(100);
 	}
 }
 

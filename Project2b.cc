@@ -22,8 +22,8 @@
 #define PORT_DIR_OFFSET (11)
 #define PORTAB_DIR_ADDR (DIGITAL_IO_BASE_ADDR + PORT_DIR_OFFSET)
 
-/* Set Port A and Port B for Input */
-#define DIOIN_PORTAB (0b1111111) //TODO only DIRA + DIRB
+/* Set Port A and Port B for Output */
+#define DIOIN_PORTAB (0b0000000) //TODO only DIRA + DIRB
 
 /* Queues containing motor commands */
 std::queue<unsigned char> *motorAQueue; // contains cmds for left motor
@@ -54,6 +54,17 @@ int main(int argc, char *argv[]) {
 
 		/* Initalize PORT A & B for Input */
 		out8(portab_dir, DIOIN_PORTAB);
+
+		int _pulseWidthNS = (1000000) + (((2000000-1000000) * 2)/6);
+		while(true){
+			out8(porta,0x00);
+			out8(portb,0x00);
+			nanospin_ns(_pulseWidthNS);
+			out8(porta,1);
+			out8(portb,1);
+			nanospin_ns(_pulseWidthNS);
+		}
+		out8(porta,0);
 
 		/* Initiaize queues */
 		motorAQueue = new std::queue<unsigned char>();

@@ -17,6 +17,10 @@
 #include <unistd.h>
 #include <iostream>
 #include <string>
+#include <time.h> 		  /* Resource: nanosleep */
+
+#define LOGIC_HIGH (0x0F)                /* For the wave generation */
+#define LOGIC_LOW (0x00)                 /* For the wave generation */
 
 
 class Motor {
@@ -33,6 +37,7 @@ private:
 	pthread_t _thread;
 	int _currentPos;
 	uintptr_t _port;
+	int _pulseWidthNS;
 	std::queue<unsigned char> *_queue;
 	bool _active;
 };
