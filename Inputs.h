@@ -1,8 +1,14 @@
 /*
  * Inputs.h
+ * 
+ * Header file. 
+ * 
+ * Represents user interactions with the system. Creates a thread that will
+ * listen for user inputs and appropriately place them into the correct motor
+ * input queue, which the motors will check to see if a user has placed a command
  *
- *  Created on: Nov 15, 2013
- *      Author: cbr4830
+ * Encapsulates a thread.
+ * @author Christoffer Rosen
  */
 
 #ifndef INPUTS_H_
@@ -18,16 +24,16 @@
 
 class Inputs {
 public:
-	Inputs();
-	virtual ~Inputs();
-	void addCmdsToMotorQueues(unsigned char, unsigned char);
-	void listen();
-	void stop();
-	void run();
+	Inputs(); // constructor
+	virtual ~Inputs(); // deconstructor
+	void addCmdsToMotorQueues(unsigned char, unsigned char); // adds commands to appropriate motor input queue
+	void listen(); // forever listens for user interaction inputs
+	void stop(); // stop the thread - not used
+	void run();  // initalize the thread and start listening
 
 private:
 	static void * InputsRunFunction(void * This) {((Inputs *)This)->listen(); return NULL;}
-	pthread_t _thread;
+	pthread_t _thread; 
 };
 
 #endif /* INPUTS_H_ */
