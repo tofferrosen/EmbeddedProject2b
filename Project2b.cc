@@ -1,14 +1,25 @@
+/**
+ * Project 2b. 
+ * 
+ * Reimplementing project 2a with QNX
+ * Christoffer Rosen
+ * Lennard Streat
+ * 
+ * 
+ * This file is the main entry point for the program.
+ * Creates the pointers to the memory mapped io for the GPIO port and initializes the motors and input listener.
+ **/
+
 #include <cstdlib>
 #include <iostream>
 #include <stdint.h>                  /* Resource(s): uintptr_t */
 #include <hw/inout.h>                /* Resource(s): in*(), out*() */
 #include <sys/mman.h>                /* Resource(s): mmap_device_io() */
-#include <sys/neutrino.h>       	 /* Resource(s): ThreadCtl() */
-#include <queue> 					 /* std::queue */
-#include <Inputs.h> 				 /* listens for user inputs */
-#include <Motor.h> 					 /* servos motors execute user input commands */
-#include <list>          			 /* std::list */
-#include <deque>          // std::deque
+#include <sys/neutrino.h>            /* Resource(s): ThreadCtl() */
+#include <queue> 		     /* std::queue */
+#include <Inputs.h> 		     /* listens for user inputs */
+#include <Motor.h> 		     /* servos motors execute user input commands */
+#include <list>          	     /* std::list */
 
 /* Constant used for the mman library */
 #define BYTE (1)
@@ -25,9 +36,8 @@
 #define PORTAB_DIR_ADDR (DIGITAL_IO_BASE_ADDR + PORT_DIR_OFFSET)
 
 /* Set Port A and Port B for Output */
-#define DIOIN_PORTAB (0b0000000) //TODO only DIRA + DIRB
+#define DIOIN_PORTAB (0b0000000) // All to output
 
-//#define MOV(x)         (0x20 | (x))
 
 /* Servos */
 #define NSP (5)
@@ -49,7 +59,7 @@ UINT8 recipe1[] = {
 	// Measure the timing precision of 9.3 second delay:
 	MOV+2, MOV+0, WAIT+31, WAIT+31, WAIT+31, MOV+5,
 	RECIPE_END
-};// cmdBuffer
+};// recipe1
 
 /* Queues containing motor commands for input */
 std::queue<unsigned char> *motorAInputQueue; // contains cmds for left motor
