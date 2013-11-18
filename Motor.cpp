@@ -8,14 +8,6 @@
 #include "Motor.h"
 
 
-// Instructions:
-#define MOV (0b00100000)
-#define WAIT (0b01000000)
-#define LOOP_START (0b10000000)
-#define END_LOOP (0b10100000)
-#define RECIPE_END (0b00000000)
-
-
 // Commands:
 #define OVR_PAUSE ('p')
 #define OVR_CONTINUE ('c')
@@ -34,27 +26,81 @@
 #define ENABLE (1)
 #define DISABLE (0)
 
+#define DIOIN_PORTAB (0b0000000) //TODO only DIRA + DIRB
+/* Port Direction Register */
+#define PORT_DIR_OFFSET (11)
+#define PORTAB_DIR_ADDR (DIGITAL_IO_BASE_ADDR + PORT_DIR_OFFSET)
+
 // Bounds:
 #define MAX_POS (6)
 #define LOW_POS (1)
 
 /* Motor Constants */
 #define NSP (5)
-#define POS0 (800000)
-#define INCR (200000)
-#define PERIOD (20000000)
+#define SERVO_MIN (1000000)
+#define SERVO_MAX (2000000)
+#define SERVO_POSITION(x) (((SERVO_MIN) + (((SERVO_MAX-SERVO_MIN) * x)/NSP)))
+
+#define MOV(x)           (0x20 | (x))
 
 
-Motor::Motor(std::queue<unsigned char> *inputQ, std::deque<unsigned char> recipe, uintptr_t port) {
+Motor::Motor(std::queue<unsigned char> *inputQ, std::deque<unsigned char> *recipe, uintptr_t port) {
 	// TODO Auto-generated constructor stub
 	_inputQueue = inputQ;
-	_currentPos = 0;
+	_currentPos = 1;
 	_port = port;
 	_recipe = recipe;
 }
 
 Motor::~Motor() {
 	// TODO Auto-generated destructor stub
+}
+
+void Motor::startSignal(){
+	struct sigevent event;
+	struct itimerspec itime;
+	timer_t timer_id;
+	int chid;
+	int rcvid;
+	my_message_t msg;
+
+	chid = ChannelCreate(0);
+
+	event.sigev_notify = SIGEV_PULSE;
+	event.sigev_coid = ConnectAttach(ND_LOCAL_NODE, 0, chid, _NTO_SIDE_CHANNEL,
+			0);
+	event.sigev_priority = getprio(0);
+	event.sigev_code = MY_PULSE_CODE;
+	timer_create(CLOCK_REALTIME, &event, &timer_id);
+
+	itime.it_value.tv_sec = 0;
+	/* 20000 million nsecs = 20 usecs */
+	itime.it_value.tv_nsec = 20000000;
+	itime.it_interval.tv_sec = 0;
+	/* 20000 million nsecs = 20 usecs */
+	itime.it_interval.tv_nsec = 20000000;
+	timer_settime(timer_id, 0, &itime, NULL);
+
+	while(true){
+	//	upTime = (POS0 + (INCR * _currentPos));
+	//	out8(_port, LOGIC_HIGH);
+	//	nanospin_ns(upTime);
+	//	std::cout << "Nanoing for... " << SERVO_POSITION(_currentPos) << "\n";
+	//	nanospin_ns(SERVO_POSITION(_currentPos));
+	// 	out8(_port, LOGIC_LOW);
+	//	usleep(1000);
+		rcvid = MsgReceive(chid, &msg, sizeof(msg), NULL);
+		if (rcvid == 0) { /* we got a pulse */
+			if (msg.pulse.code == MY_PULSE_CODE) {
+				//printf("we got a pulse from our timer\n");
+				out8(_port, LOGIC_HIGH);
+				nanospin_ns(SERVO_POSITION(_currentPos));
+				out8(_port, LOGIC_LOW);
+				sched_yield();
+			} /* else other pulses ... */
+		} /* else other messages ... */
+
+	}
 }
 
 void Motor::moveMotor(int position){
@@ -72,78 +118,66 @@ void Motor::moveMotor(int position){
  * Pulls commands from the queue and executes them
  */
 void Motor::executeCmds(){
-	unsigned char cmd;
-	int upTime = 0;
-	int downTime = 0;
 
 	std::cout << "Motor executing commands \n";
+	unsigned char cmd;
 
 	while(true){
-		upTime = (POS0 + (INCR*_currentPos));
-		downTime = PERIOD - upTime;
-		out8(_port,LOGIC_LOW);
-		nanospin_ns(downTime);
-		out8(_port,LOGIC_HIGH);
-		nanospin_ns(upTime);
-
-		/* Check queue for user command
-		 * Otherwise, execute recipe */
 		if(!_inputQueue->empty()){
 			cmd = _inputQueue->front();
 			_inputQueue->pop();
 
-		} else {
-			if(_recipe.size() > 0){
+			if(cmd == 'l'){
+				if(_currentPos > 0){
+					_currentPos--;
+				}
+			} else if (cmd == 'r'){
+				if(_currentPos < 5){
+					_currentPos++;
+				}
+			}
+			std::cout << cmd << "!!! " << _currentPos << "\n";
 
+		} else {
+			//std::cout << "SIZE: " + _recipe.size();
+			if(_recipe->size() > 0){
+			//	std::cout << "CHECK RECIPE \n";
+				unsigned char recCmd = _recipe->front();
+				int delta = _currentPos;
+
+				if(recCmd >= 31 && recCmd < 64){
+					 _currentPos = recCmd & 0b00011111;
+				}
+				_recipe->pop_front();
+
+				//nanospin_ns(SERVO_POSITION(_currentPos));
+
+				delta -= _currentPos;
+				if( delta < 0 ){
+					delta *= -1;
+				}
+				//printf("Value: %d\n",delta);
+				//nanospin_ns( delta*1000000000 );
+				sleep(delta);
+			//	std::cout << "SIZE: " << _recipe->size() << "\n";
 			}
 
 		}
-
+		sched_yield();
 	}
 
-	while(true){
-
-		std::cout << "HI";
-
-		// check queue for cmd
-		if(!_inputQueue->empty()){
-			cmd = _inputQueue->front();
-			std::cout << "Motor trying to execute: " << cmd << "\n";
-			_inputQueue->pop();
-			std::cout << "Queue size: " << _inputQueue->size();
-			//TODO execute command
-
-			switch( cmd ){
-					case OVR_PAUSE:
-					//	updateStatus( s, STAT_RP, ENABLE );
-						break;
-					case OVR_CONTINUE:
-					//	updateStatus( s, STAT_RP, DISABLE );
-						break;
-					case OVR_RIGHT:
-						moveMotor(_currentPos+1);
-						break;
-					case OVR_LEFT:
-						moveMotor(_currentPos-1);
-						break;
-					case OVR_RESTART:
-					//	servoRestart( s, s->id ); // Clears status flag
-					//	updateStatus( s, STAT_RP, DISABLE );
-						break;
-					case OVR_NOOP:
-					default:
-						// Do Nothing
-						break;
-				}
-		} else {
-
-		}
-	}
 }
 
 void Motor::run() {
 	int rc = pthread_create(&_thread, NULL, MotorRunFunction, this);
 	_active = true;
+	if (rc) {
+		fprintf(stderr, "ERROR(%d): PThread not created.\n", rc);
+		return;
+	}
+
+	rc = pthread_create(&_thread, NULL, PWMRunFunction, this);
+
 	if (rc) {
 		fprintf(stderr, "ERROR(%d): PThread not created.\n", rc);
 		return;
