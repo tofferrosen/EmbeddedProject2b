@@ -1,8 +1,13 @@
 /*
- * Motor.cpp
+ * Represents the Servos Motor. 
+ * It is able to both execute command recipies and user input comamnds.
  *
- *  Created on: Nov 15, 2013
- *      Author: cbr4830
+ * It encapsulates two threads: 1) One is responsible for executing recipes and user input commands. 
+ * It appropriately controls how long the uptime is required for the next time signal is sent.  
+ * 2) The second thread generates the signal, or PWM, to the motor. It sends the pulse width uptime 
+ * required to move the servos motor to required position every 20ms which is manipulated by thread 1. 
+ * This is done by setting 1 on the digital IO board for the required uptime  to set position of the motor 
+ * and then setting it back to zero every 20 milliseconds through the use of a timer.
  */
 
 #include "Motor.h"
@@ -25,7 +30,8 @@
 #define ENABLE (1)
 #define DISABLE (0)
 
-#define DIOIN_PORTAB (0b0000000) //TODO only DIRA + DIRB
+#define DIOIN_PORTAB (0b0000000) // Everything to output!
+
 /* Port Direction Register */
 #define PORT_DIR_OFFSET (11)
 #define PORTAB_DIR_ADDR (DIGITAL_IO_BASE_ADDR + PORT_DIR_OFFSET)
@@ -40,9 +46,16 @@
 #define SERVO_MAX (2000000)
 #define SERVO_POSITION(x) (((SERVO_MIN) + (((SERVO_MAX-SERVO_MIN) * x)/NSP)))
 
+/**
+ * Constructor
+ * @param inputQ	This is the queue where inputs for the motor will be sent
+ * @param receipe	This is a pointer to an array containing recipe commands
+ * @param size		This is the size of the receipe array
+ * @param port		This is the digital IO port connected to the servos motor
+ **/
 Motor::Motor(std::queue<unsigned char> *inputQ, UINT8 *recipe, UINT8 size,
 		uintptr_t port) {
-	// TODO Auto-generated constructor stub
+			
 	_inputQueue = inputQ;
 	_currentPos = 0;
 	_port = port;
@@ -51,9 +64,17 @@ Motor::Motor(std::queue<unsigned char> *inputQ, UINT8 *recipe, UINT8 size,
 }
 
 Motor::~Motor() {
-	// TODO Auto-generated destructor stub
+	
 }
 
+/** 
+ * startSignal
+ * Responsible for sending a pulse with the appropriate up-time (1 set on the digital IO port) 
+ * to position the motor every 20ms. Servos is expecting pwm every 20ms, which we use a timer
+ * to acheive.
+ * 
+ * Will run on seperate thread (1)
+ */
 void Motor::startSignal() {
 	struct sigevent event;
 	struct itimerspec itime;
@@ -71,7 +92,7 @@ void Motor::startSignal() {
 	event.sigev_code = MY_PULSE_CODE;
 	timer_create(CLOCK_REALTIME, &event, &timer_id);
 
-	itime.it_value.tv_sec = 0;
+	itime.it_value.tv_sec = 0; 
 	/* 20000 million nsecs = 20 usecs */
 	itime.it_value.tv_nsec = 20000000;
 	itime.it_interval.tv_sec = 0;
@@ -84,28 +105,23 @@ void Motor::startSignal() {
 		rcvid = MsgReceive(chid, &msg, sizeof(msg), NULL);
 		if (rcvid == 0) { /* we got a pulse */
 			if (msg.pulse.code == MY_PULSE_CODE) {
-				//printf("we got a pulse from our timer\n");
 				out8(_port, LOGIC_HIGH);
 				nanospin_ns(SERVO_POSITION(_currentPos));
 				out8(_port, LOGIC_LOW);
 				sched_yield();
-			} /* else other pulses ... */
-		} /* else other messages ... */
-
+			} 
+		} 
 	}
 }
 
-void Motor::moveMotor(int position) {
-
-	/* Check bounds */
-	if (position >= MAX_POS || position <= LOW_POS) {
-		return;
-	}
-
-	/* Change current position */
-	_currentPos = position;
-}
-
+/**
+ * mirror
+ * Given a position, returns its mirror position
+ * 
+ * @param pos			Position to find mirror
+ * @return int			Mirror position
+ * @note 			Everything hardcoded!
+ **/
 int Motor::mirror(int pos){
 	if(pos == 0){
 		return 5;
@@ -123,7 +139,10 @@ int Motor::mirror(int pos){
 }
 
 /**
- * Pulls commands from the queue and executes them
+ * executeCmds
+ * Executes both input and recipe commands. 
+ * 
+ * Runs in a seperate thread (2)
  */
 void Motor::executeCmds() {
 	UINT8 cmd;
@@ -135,6 +154,8 @@ void Motor::executeCmds() {
 	bool pause = false;
 
 	while (true) {
+		
+		/** Check if there is any input commands b4 running next recipe cmd **/
 		if (!_inputQueue->empty()) {
 			cmd = _inputQueue->front();
 			_inputQueue->pop();
@@ -158,7 +179,9 @@ void Motor::executeCmds() {
 			}
 
 		} else {
+			// make sure there are more recipes remaining and motor is not paused
 			if (cur < _size && !pause) {
+				
 				// Read Command & Instruction:
 				int delta = _currentPos;
 				UINT8 instr = _recipe[cur++];
@@ -210,7 +233,13 @@ void Motor::executeCmds() {
 
 }
 
+/**
+ * run
+ * Initalizes the threads and starts reading input commands and recipe commands,
+ * as well as sending pwm waves to the servos motors
+ */
 void Motor::run() {
+	// Thread 1
 	int rc = pthread_create(&_thread, NULL, MotorRunFunction, this);
 
 	if (rc) {
@@ -218,6 +247,7 @@ void Motor::run() {
 		return;
 	}
 
+	// Thread 2
 	rc = pthread_create(&_thread, NULL, PWMRunFunction, this);
 
 	if (rc) {
