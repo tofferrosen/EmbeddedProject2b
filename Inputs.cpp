@@ -1,10 +1,9 @@
 /*
  * Inputs.cpp
  *
- *  This will listen for user commands.
- *	Pushes cmds to approproate motor queues
- *  Created on: Nov 15, 2013
- *      Author: cbr4830
+ *  Represents user interactions with the system. Creates a thread that will
+ *  listen for user inputs and appropriately place them into the correct motor
+ *  input queue, which the motors will check to see if a user has placed a command
  */
 
 #include "Inputs.h"
@@ -21,9 +20,12 @@ Inputs::~Inputs() {
 }
 
 /**
- * Adds to the each respective motor queue
- * the commands, such that the motors can then
- * execute it when it gets the chance.
+ * addCmdsToMotorQueues
+ * Responsible for adding the the command to the appropriate queue and 
+ * prompting the user for additional input
+ * 
+ * @param leftCmd	Command to be placed for left servos motor
+ * @param rightCmd	Command to be placed for the right servos motor
  */
 void Inputs::addCmdsToMotorQueues(unsigned char leftCmd, unsigned char rightCmd) {
 	motorAInputQueue->push(leftCmd);
@@ -33,8 +35,8 @@ void Inputs::addCmdsToMotorQueues(unsigned char leftCmd, unsigned char rightCmd)
 }
 
 /**
- * listen()
- * Purpose: Listens to user commands. User commands are limited to the first two
+ * listen
+ * Responnsible for listening to user commands. User commands are limited to the first two
  * characters in a line before carriage return.
  */
 void Inputs::listen() {
@@ -59,7 +61,8 @@ void Inputs::listen() {
 }
 
 /**
- * Start the inputs worker
+ * Initalizes the thread to start listening for user commands.
+ * The thread will be running the listen method.
  */
 void Inputs::run() {
 
@@ -70,7 +73,10 @@ void Inputs::run() {
 	}
 }
 
-
+/**
+ * This method is not used for this program. For future extensibility, this can be
+ * called to stop this thread
+ **/
 void Inputs::stop() {
 	pthread_join(_thread,NULL);
 }
