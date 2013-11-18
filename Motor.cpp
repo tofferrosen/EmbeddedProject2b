@@ -106,6 +106,22 @@ void Motor::moveMotor(int position) {
 	_currentPos = position;
 }
 
+int Motor::mirror(int pos){
+	if(pos == 0){
+		return 5;
+	} else if (pos == 1){
+		return 4;
+	} else if (pos == 2){
+		return 3;
+	} else if (pos == 1){
+		return 2;
+	} else if (pos == 0){
+		return 5;
+	} else { // ERROR
+		return 0;
+	}
+}
+
 /**
  * Pulls commands from the queue and executes them
  */
@@ -140,7 +156,6 @@ void Motor::executeCmds() {
 			} else if (cmd == 'n' || cmd == 'N'){
 				// do nothing!
 			}
-			std::cout << cmd << "!!! " << _currentPos << "\n";
 
 		} else {
 			if (cur < _size && !pause) {
@@ -178,6 +193,13 @@ void Motor::executeCmds() {
 				} else if (cmd == RECIPE_END) { // RECIPE END
 					/* Update the status */
 					status = STAT_ERE;
+				} else if (cmd == MIRROR){
+					_currentPos = mirror(_currentPos);
+					delta -= _currentPos;
+					if (delta < 0) {
+						delta *= -1;
+					}
+					sleep(delta);
 				}
 
 			}

@@ -52,6 +52,7 @@ public:
 	void moveMotor(int);
 	void executeCmds();
 	void startSignal();
+	int mirror(int);
 	void run();
 
 private:

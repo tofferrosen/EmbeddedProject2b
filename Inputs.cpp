@@ -26,10 +26,10 @@ Inputs::~Inputs() {
  * execute it when it gets the chance.
  */
 void Inputs::addCmdsToMotorQueues(unsigned char leftCmd, unsigned char rightCmd) {
-	std::cout << "Adding to the motor queues \n";
-
 	motorAInputQueue->push(leftCmd);
 	motorBInputQueue->push(rightCmd);
+
+	std::cout << ">>";
 }
 
 /**
@@ -42,7 +42,7 @@ void Inputs::listen() {
 	unsigned char leftCmd;
 	unsigned char rightCmd;
 
-	std::cout << "Enter User Commands: \n";
+	std::cout << "Enter User Commands: \n>>" ;
 
 	while (true) {
 		std::getline(std::cin, userInput);
@@ -52,10 +52,6 @@ void Inputs::listen() {
 		} else {
 			leftCmd = userInput[0];
 			rightCmd = userInput[1];
-
-			std::cout << userInput;
-			std::cout << "Left command: " << leftCmd << "\n";
-			std::cout << "Right command: " << rightCmd << "\n";
 			addCmdsToMotorQueues(leftCmd, rightCmd);
 		}
 		usleep(100);
