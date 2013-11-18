@@ -17,7 +17,8 @@
 #include <unistd.h>
 #include <iostream>
 #include <string>
-#include <time.h> 		  /* Resource: nanosleep */
+#include <deque>
+#include <time.h>
 
 #define LOGIC_HIGH (0x0F)                /* For the wave generation */
 #define LOGIC_LOW (0x00)                 /* For the wave generation */
@@ -26,7 +27,7 @@
 class Motor {
 public:
 
-	Motor(std::queue<unsigned char> *, uintptr_t);
+	Motor(std::queue<unsigned char> *, std::deque<unsigned char>, uintptr_t);
 	virtual ~Motor();
 	void moveMotor(int);
 	void executeCmds();
@@ -38,7 +39,8 @@ private:
 	int _currentPos;
 	uintptr_t _port;
 	int _pulseWidthNS;
-	std::queue<unsigned char> *_queue;
+	std::queue<unsigned char> *_inputQueue;
+	std::deque<unsigned char> _recipe;
 	bool _active;
 };
 #endif /* MOTOR_H_ */

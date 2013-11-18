@@ -40,15 +40,17 @@
 
 /* Motor Constants */
 #define NSP (5)
-#define SERVO_MAXWIDTH (2000000) // ns
-#define SERVO_MINWIDTH (1000000) // ns
+#define POS0 (800000)
+#define INCR (200000)
+#define PERIOD (20000000)
 
-Motor::Motor(std::queue<unsigned char> *queue, uintptr_t port) {
+
+Motor::Motor(std::queue<unsigned char> *inputQ, std::deque<unsigned char> recipe, uintptr_t port) {
 	// TODO Auto-generated constructor stub
-	_queue = queue;
+	_inputQueue = inputQ;
 	_currentPos = 0;
 	_port = port;
-	_pulseWidthNS = SERVO_MINWIDTH; // move servo to position 0
+	_recipe = recipe;
 }
 
 Motor::~Motor() {
@@ -62,8 +64,8 @@ void Motor::moveMotor(int position){
 		return;
 	}
 
-	/* Change pulse width */
-	_pulseWidthNS = (SERVO_MINWIDTH) + (((SERVO_MAXWIDTH-SERVO_MINWIDTH) * position)/NSP);
+	/* Change current position */
+	_currentPos = position;
 }
 
 /**
@@ -71,21 +73,44 @@ void Motor::moveMotor(int position){
  */
 void Motor::executeCmds(){
 	unsigned char cmd;
-	int nanoTime = 0;
-	int period = 20000000;
+	int upTime = 0;
+	int downTime = 0;
+
 	std::cout << "Motor executing commands \n";
 
 	while(true){
-		nanoTime = 0;
+		upTime = (POS0 + (INCR*_currentPos));
+		downTime = PERIOD - upTime;
+		out8(_port,LOGIC_LOW);
+		nanospin_ns(downTime);
+		out8(_port,LOGIC_HIGH);
+		nanospin_ns(upTime);
+
+		/* Check queue for user command
+		 * Otherwise, execute recipe */
+		if(!_inputQueue->empty()){
+			cmd = _inputQueue->front();
+			_inputQueue->pop();
+
+		} else {
+			if(_recipe.size() > 0){
+
+			}
+
+		}
+
+	}
+
+	while(true){
 
 		std::cout << "HI";
 
 		// check queue for cmd
-		if(!_queue->empty()){
-			cmd = _queue->front();
+		if(!_inputQueue->empty()){
+			cmd = _inputQueue->front();
 			std::cout << "Motor trying to execute: " << cmd << "\n";
-			_queue->pop();
-			std::cout << "Queue size: " << _queue->size();
+			_inputQueue->pop();
+			std::cout << "Queue size: " << _inputQueue->size();
 			//TODO execute command
 
 			switch( cmd ){
@@ -111,7 +136,7 @@ void Motor::executeCmds(){
 						break;
 				}
 		} else {
-			_pulseWidthNS = SERVO_MINWIDTH;
+
 		}
 	}
 }

@@ -7,14 +7,16 @@
 #include <queue> 					 /* std::queue */
 #include <Inputs.h> 				 /* listens for user inputs */
 #include <Motor.h> 					 /* servos motors execute user input commands */
+#include <list>          			 /* std::list */
+#include <deque>          // std::deque
 
 /* Constant used for the mman library */
 #define BYTE (1)
 
 /* PORT A and PORT B Registers */
 #define DIGITAL_IO_BASE_ADDR (0x280)
-#define PORTA_OFFSET (1)
-#define PORTB_OFFSET (9)
+#define PORTA_OFFSET (8)	/* PORTA */
+#define PORTB_OFFSET (9)	/* PORTB */
 #define PORTA_ADDR (DIGITAL_IO_BASE_ADDR + PORTA_OFFSET)
 #define PORTB_ADDR (DIGITAL_IO_BASE_ADDR + PORTB_OFFSET)
 
@@ -25,10 +27,27 @@
 /* Set Port A and Port B for Output */
 #define DIOIN_PORTAB (0b0000000) //TODO only DIRA + DIRB
 
-/* Queues containing motor commands */
-std::queue<unsigned char> *motorAQueue; // contains cmds for left motor
-std::queue<unsigned char> *motorBQueue; // contains cmds for right motor
+/* Servos */
+#define NSP (5)
+#define POS0 (800000)
+#define INCR (200000)
+#define PERIOD (20000000)
 
+// Instructions:
+#define MOV (0b00100000)
+#define WAIT (0b01000000)
+#define LOOP_START (0b10000000)
+#define END_LOOP (0b10100000)
+#define RECIPE_END (0b00000000)
+#define MIRROR (0b01100000)
+
+
+/* Queues containing motor commands for input */
+std::queue<unsigned char> *motorAInputQueue; // contains cmds for left motor
+std::queue<unsigned char> *motorBInputQueue; // contains cmds for right motor
+
+std::deque<unsigned char> recipe1 (MOV+5,MOV+1);
+std::deque<unsigned char> recipe2 (MOV+5, MOV+1);
 
 int main(int argc, char *argv[]) {
 	 /* Error Handling */
@@ -55,32 +74,42 @@ int main(int argc, char *argv[]) {
 		/* Initalize PORT A & B for Input */
 		out8(portab_dir, DIOIN_PORTAB);
 
-		int _pulseWidthNS = (1000000) + (((2000000-1000000) * 2)/6);
+		/** TESTING MOTORS WORKS :)
+		int upTime;
+		int downTime;
+		int pos = 5;
 		while(true){
+
+			upTime = (POS0 + (INCR*pos));
+			downTime = PERIOD - upTime;
+
 			out8(porta,0x00);
 			out8(portb,0x00);
-			nanospin_ns(_pulseWidthNS);
+			nanospin_ns(downTime);
+
 			out8(porta,1);
 			out8(portb,1);
-			nanospin_ns(_pulseWidthNS);
-		}
-		out8(porta,0);
+			nanospin_ns(upTime);
+		} **/
 
 		/* Initiaize queues */
-		motorAQueue = new std::queue<unsigned char>();
-		motorBQueue = new std::queue<unsigned char>();
+		motorAInputQueue = new std::queue<unsigned char>();
+		motorBInputQueue = new std::queue<unsigned char>();
+
 
 		/* Initialze motors and inputs  */
 		Inputs *inputs = new Inputs();
-		Motor *leftMotor = new Motor(motorAQueue, porta);
-		Motor *rightMotor = new Motor(motorBQueue, portb);
+		out8(porta,0);
+		out8(portb,0);
+		//Motor *leftMotor = new Motor(motorAInputQueue, recipe1, porta);
+		//Motor *rightMotor = new Motor(motorBInputQueue, recipe2, portb);
 
 		/* Start */
-		inputs->run();
-		leftMotor->run();
+		//inputs->run();
+		//leftMotor->run();
 		//rightMotor->run();
 
-		while(true){sleep(1);}
+		while(true){}
 		return EXIT_SUCCESS;
 	}
 }

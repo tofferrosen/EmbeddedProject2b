@@ -9,8 +9,8 @@
 
 #include "Inputs.h"
 
-extern std::queue<unsigned char> *motorAQueue;
-extern std::queue<unsigned char> *motorBQueue;
+extern std::queue<unsigned char> *motorAInputQueue;
+extern std::queue<unsigned char> *motorBInputQueue;
 
 Inputs::Inputs() {
 	// TODO Auto-generated constructor stub
@@ -28,8 +28,8 @@ Inputs::~Inputs() {
 void Inputs::addCmdsToMotorQueues(unsigned char leftCmd, unsigned char rightCmd) {
 	std::cout << "Adding to the motor queues \n";
 
-	motorAQueue->push(leftCmd);
-	motorBQueue->push(rightCmd);
+	motorAInputQueue->push(leftCmd);
+	motorBInputQueue->push(rightCmd);
 }
 
 /**
