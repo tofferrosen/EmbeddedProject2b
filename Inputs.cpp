@@ -44,7 +44,7 @@ void Inputs::listen() {
 
 	std::cout << "Enter User Commands: \n";
 
-	while (_active) {
+	while (true) {
 		std::getline(std::cin, userInput);
 
 		if(userInput.length() < 2){
@@ -66,7 +66,7 @@ void Inputs::listen() {
  * Start the inputs worker
  */
 void Inputs::run() {
-	_active = true;
+
 	int rc = pthread_create(&_thread, NULL, InputsRunFunction, this);
 	if (rc) {
 		fprintf(stderr, "ERROR(%d): PThread not created.\n", rc);
@@ -74,11 +74,8 @@ void Inputs::run() {
 	}
 }
 
-/**
- * Tells inputs to stop
- */
+
 void Inputs::stop() {
-	_active = false;
 	pthread_join(_thread,NULL);
 }
 

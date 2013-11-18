@@ -27,7 +27,7 @@
 /* Set Port A and Port B for Output */
 #define DIOIN_PORTAB (0b0000000) //TODO only DIRA + DIRB
 
-#define MOV(x)         (0x20 | (x))
+//#define MOV(x)         (0x20 | (x))
 
 /* Servos */
 #define NSP (5)
@@ -35,15 +35,25 @@
 #define INCR (200000)
 #define PERIOD (20000000)
 
-
+/******************************************************************************
+ * Recipes
+ ******************************************************************************/
+UINT8 recipe1[] = {
+	// Group 1:
+	MOV+0, MOV+5, MOV+0,
+	// Test Default Loop Behavior:
+	MOV+3, LOOP_START+0, MOV+1, MOV+4, END_LOOP,
+	MOV+0,
+	// Move to verify WAIT+0:
+	MOV+2, WAIT+0, MOV+3,
+	// Measure the timing precision of 9.3 second delay:
+	MOV+2, MOV+0, WAIT+31, WAIT+31, WAIT+31, MOV+5,
+	RECIPE_END
+};// cmdBuffer
 
 /* Queues containing motor commands for input */
 std::queue<unsigned char> *motorAInputQueue; // contains cmds for left motor
 std::queue<unsigned char> *motorBInputQueue; // contains cmds for right motor
-
-std::deque<unsigned char>* recipe1;
-std::deque<unsigned char>* recipe2;
-
 
 int main(int argc, char *argv[]) {
 	 /* Error Handling */
@@ -54,17 +64,6 @@ int main(int argc, char *argv[]) {
 	uintptr_t porta;
 	uintptr_t portb;
 	uintptr_t portab_dir;
-
-	recipe1 = new std::deque<unsigned char>;
-	recipe2 = new std::deque<unsigned char>;
-
-	recipe1->push_back(MOV(0x2));
-	//recipe1->push_back(MOV(0x0));
-
-	recipe2->push_back(MOV(0x5));
-	recipe2->push_back(MOV(0x0));
-	recipe2->push_back(MOV(0x3));
-
 
 	/* Enable GPIO access to the current thread: */
 	privity_err = ThreadCtl(_NTO_TCTL_IO, NULL );
@@ -81,34 +80,15 @@ int main(int argc, char *argv[]) {
 		/* Initalize PORT A & B for output */
 		out8(portab_dir, DIOIN_PORTAB);
 
-/**
-		int upTime;
-		int downTime;
-		int pos = 0;
-		while(true){
-
-			upTime = (POS0 + (INCR*pos));
-			downTime = PERIOD - upTime;
-
-			out8(porta,0x00);
-			out8(portb,0x00);
-			nanospin_ns(downTime);
-
-			out8(porta,1);
-			out8(portb,1);
-			nanospin_ns(upTime);
-		} */
-
 		/* Initiaize queues */
 		motorAInputQueue = new std::queue<unsigned char>();
 		motorBInputQueue = new std::queue<unsigned char>();
 
-
 		/* Initialze motors and inputs  */
 		Inputs *inputs = new Inputs();
 
-		Motor *leftMotor = new Motor(motorAInputQueue, recipe1, porta);
-		Motor *rightMotor = new Motor(motorBInputQueue, recipe2, portb);
+		Motor *leftMotor = new Motor(motorAInputQueue, recipe1,19, porta);
+		Motor *rightMotor = new Motor(motorBInputQueue, recipe1,19, portb);
 
 		/* Start */
 		leftMotor->run();

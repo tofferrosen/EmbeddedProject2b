@@ -28,7 +28,6 @@ public:
 private:
 	static void * InputsRunFunction(void * This) {((Inputs *)This)->listen(); return NULL;}
 	pthread_t _thread;
-	bool _active;
 };
 
 #endif /* INPUTS_H_ */

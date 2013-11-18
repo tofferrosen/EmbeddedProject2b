@@ -7,7 +7,6 @@
 
 #include "Motor.h"
 
-
 // Commands:
 #define OVR_PAUSE ('p')
 #define OVR_CONTINUE ('c')
@@ -41,22 +40,21 @@
 #define SERVO_MAX (2000000)
 #define SERVO_POSITION(x) (((SERVO_MIN) + (((SERVO_MAX-SERVO_MIN) * x)/NSP)))
 
-#define MOV(x)           (0x20 | (x))
-
-
-Motor::Motor(std::queue<unsigned char> *inputQ, std::deque<unsigned char> *recipe, uintptr_t port) {
+Motor::Motor(std::queue<unsigned char> *inputQ, UINT8 *recipe, UINT8 size,
+		uintptr_t port) {
 	// TODO Auto-generated constructor stub
 	_inputQueue = inputQ;
-	_currentPos = 1;
+	_currentPos = 0;
 	_port = port;
 	_recipe = recipe;
+	_size = size;
 }
 
 Motor::~Motor() {
 	// TODO Auto-generated destructor stub
 }
 
-void Motor::startSignal(){
+void Motor::startSignal() {
 	struct sigevent event;
 	struct itimerspec itime;
 	timer_t timer_id;
@@ -81,14 +79,8 @@ void Motor::startSignal(){
 	itime.it_interval.tv_nsec = 20000000;
 	timer_settime(timer_id, 0, &itime, NULL);
 
-	while(true){
-	//	upTime = (POS0 + (INCR * _currentPos));
-	//	out8(_port, LOGIC_HIGH);
-	//	nanospin_ns(upTime);
-	//	std::cout << "Nanoing for... " << SERVO_POSITION(_currentPos) << "\n";
-	//	nanospin_ns(SERVO_POSITION(_currentPos));
-	// 	out8(_port, LOGIC_LOW);
-	//	usleep(1000);
+	while (true) {
+
 		rcvid = MsgReceive(chid, &msg, sizeof(msg), NULL);
 		if (rcvid == 0) { /* we got a pulse */
 			if (msg.pulse.code == MY_PULSE_CODE) {
@@ -103,10 +95,10 @@ void Motor::startSignal(){
 	}
 }
 
-void Motor::moveMotor(int position){
+void Motor::moveMotor(int position) {
 
 	/* Check bounds */
-	if(position >= MAX_POS || position <= LOW_POS){
+	if (position >= MAX_POS || position <= LOW_POS) {
 		return;
 	}
 
@@ -117,49 +109,77 @@ void Motor::moveMotor(int position){
 /**
  * Pulls commands from the queue and executes them
  */
-void Motor::executeCmds(){
+void Motor::executeCmds() {
+	UINT8 cmd;
+	UINT8 cur = 0;
+	UINT8 loopPointer = 0;
+	UINT8 loopCounter = 0;
+	UINT8 status = 0; /* 0 = running, 1 = stopped */
+	int wait;
+	bool pause = false;
 
-	std::cout << "Motor executing commands \n";
-	unsigned char cmd;
-
-	while(true){
-		if(!_inputQueue->empty()){
+	while (true) {
+		if (!_inputQueue->empty()) {
 			cmd = _inputQueue->front();
 			_inputQueue->pop();
 
-			if(cmd == 'l'){
-				if(_currentPos > 0){
+			if (cmd == 'l' || cmd == 'L') {
+				if (_currentPos > 0) {
 					_currentPos--;
 				}
-			} else if (cmd == 'r'){
-				if(_currentPos < 5){
+			} else if (cmd == 'r' || cmd == 'R') {
+				if (_currentPos < 5) {
 					_currentPos++;
 				}
+			} else if (cmd == 'p' || cmd == 'P'){
+				pause = true;
+			} else if (cmd == 'c' || cmd == 'C'){
+				pause = false;
+			} else if (cmd == 'b' || cmd == 'B'){
+				cur = 0;
+			} else if (cmd == 'n' || cmd == 'N'){
+				// do nothing!
 			}
 			std::cout << cmd << "!!! " << _currentPos << "\n";
 
 		} else {
-			//std::cout << "SIZE: " + _recipe.size();
-			if(_recipe->size() > 0){
-			//	std::cout << "CHECK RECIPE \n";
-				unsigned char recCmd = _recipe->front();
+			if (cur < _size && !pause) {
+				// Read Command & Instruction:
 				int delta = _currentPos;
+				UINT8 instr = _recipe[cur++];
+				UINT8 cmd = instr & 0b11100000;
+				UINT8 arg = instr & 0b00011111;
 
-				if(recCmd >= 31 && recCmd < 64){
-					 _currentPos = recCmd & 0b00011111;
+				if (cmd == MOV) { // MOVE COMMAND
+					_currentPos = arg;
+					delta -= _currentPos;
+					if (delta < 0) {
+						delta *= -1;
+					}
+					sleep(delta);
+
+				} else if (cmd == WAIT) { // WAIT COMMAND
+					wait = arg;
+					usleep(100000 * wait);
+
+				} else if (cmd == LOOP_START) { // LOOP START
+					if (loopCounter > 0) { // Check Nested Loop
+						/* Update LEDs: Not Required*/
+						status = STAT_NLE;
+					} else {
+						loopCounter = arg;
+						loopPointer = cur;
+					}
+				} else if (cmd == END_LOOP) { // END LOOP
+					if( loopCounter > 0){
+						cur = loopPointer;
+						loopCounter--;
+					}else{/* Continue to next instruction. */}
+				} else if (cmd == RECIPE_END) { // RECIPE END
+					/* Update the status */
+					status = STAT_ERE;
 				}
-				_recipe->pop_front();
 
-				//nanospin_ns(SERVO_POSITION(_currentPos));
-
-				delta -= _currentPos;
-				if( delta < 0 ){
-					delta *= -1;
-				}
-				//printf("Value: %d\n",delta);
-				//nanospin_ns( delta*1000000000 );
-				sleep(delta);
-			//	std::cout << "SIZE: " << _recipe->size() << "\n";
 			}
 
 		}
@@ -170,7 +190,7 @@ void Motor::executeCmds(){
 
 void Motor::run() {
 	int rc = pthread_create(&_thread, NULL, MotorRunFunction, this);
-	_active = true;
+
 	if (rc) {
 		fprintf(stderr, "ERROR(%d): PThread not created.\n", rc);
 		return;

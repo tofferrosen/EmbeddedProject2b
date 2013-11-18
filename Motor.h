@@ -24,6 +24,7 @@
 #include <sys/netmgr.h>
 #include <sys/neutrino.h>
 #define MY_PULSE_CODE   _PULSE_CODE_MINAVAIL
+typedef unsigned char UINT8;
 
 typedef union {
         struct _pulse   pulse;
@@ -34,11 +35,19 @@ typedef union {
 #define LOGIC_HIGH (0x0F)                /* For the wave generation */
 #define LOGIC_LOW (0x00)                 /* For the wave generation */
 
+// Instructions:
+#define MOV (0b00100000)
+#define WAIT (0b01000000)
+#define LOOP_START (0b10000000)
+#define END_LOOP (0b10100000)
+#define RECIPE_END (0b00000000)
+#define MIRROR (0b01100000)
+
 
 class Motor {
 public:
 
-	Motor(std::queue<unsigned char> *, std::deque<unsigned char> *, uintptr_t);
+	Motor(std::queue<unsigned char> *, UINT8*, UINT8, uintptr_t);
 	virtual ~Motor();
 	void moveMotor(int);
 	void executeCmds();
@@ -53,7 +62,7 @@ private:
 	uintptr_t _port;
 	int _pulseWidthNS;
 	std::queue<unsigned char> *_inputQueue;
-	std::deque<unsigned char> *_recipe;
-	bool _active;
+	UINT8* _recipe;
+	UINT8 _size;
 };
 #endif /* MOTOR_H_ */
