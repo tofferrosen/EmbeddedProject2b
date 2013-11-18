@@ -140,11 +140,11 @@ void Motor::executeCmds() {
 			_inputQueue->pop();
 
 			if (cmd == 'l' || cmd == 'L') {
-				if (_currentPos > 0) {
+				if (_currentPos > 0 && pause) {
 					_currentPos--;
 				}
 			} else if (cmd == 'r' || cmd == 'R') {
-				if (_currentPos < 5) {
+				if (_currentPos < 5 && pause) {
 					_currentPos++;
 				}
 			} else if (cmd == 'p' || cmd == 'P'){
